@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildQuery, formatStars, looksLikeSkill, mergeRepos, pickImages, rarity, skillsFromTree } from './github.ts'
+import { buildQuery, formatStars, looksLikeSkill, mergeRepos, pickImages, rarity, readmeBlurb, skillsFromTree } from './github.ts'
 import type { Filters, Repo } from './github.ts'
 
 const f: Filters = { min: 10, max: null, sort: 'top', hidden: [] }
@@ -28,6 +28,13 @@ test('looksLikeSkill drops READMEs that never mention skills', () => {
   assert.equal(looksLikeSkill('# FPS optimizer\nBoost your frames'), false)
   assert.equal(looksLikeSkill('An agent Skill for diagrams'), true)
   assert.equal(looksLikeSkill(''), true)
+})
+
+test('readmeBlurb takes the first real paragraph, not headings, lists or badges', () => {
+  const md = '# Title\n\n[![b](https://img.shields.io/x)](y)\n\n- a list item that is long enough to be a paragraph but is a list\n\nThis skill turns any **plan** into a [diagram](https://x.y) you can click through, with no setup at all.'
+  assert.equal(readmeBlurb(md), 'This skill turns any plan into a diagram you can click through, with no setup at all.')
+  assert.equal(readmeBlurb('# Only a heading'), '')
+  assert.equal(readmeBlurb(`${'word '.repeat(80)}`, 20).length, 20)
 })
 
 test('rarity tiers and star formatting', () => {

@@ -16,7 +16,7 @@ export type Repo = {
 }
 export type Sort = 'top' | 'fresh' | 'new'
 export type Filters = { min: number; max: number | null; sort: Sort; hidden: string[] }
-export type Extras = { images: string[]; skill: boolean }
+export type Extras = { images: string[]; skill: boolean; blurb: string }
 export type Contents = { skills: string[]; hasScripts: boolean }
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
 
@@ -140,11 +140,26 @@ export function pickImages(md: string, id: string, max = 3): string[] {
 // "mentions skill" is the spam guard; topic-stuffed spam READMEs never do.
 export const looksLikeSkill = (readme: string) => readme === '' || /skill/i.test(readme)
 
+// First real paragraph of the README: fills cards that have no picture.
+export function readmeBlurb(md: string, max = 280): string {
+  const text = md
+    .replace(/<!--[\s\S]*?-->|```[\s\S]*?```/g, '')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/<[^>]+>/g, ' ')
+  for (const block of text.split(/\n\s*\n/)) {
+    if (/^\s*(#|\||[-*+] |\d+\. )/m.test(block)) continue // headings, tables, lists
+    const p = block.replace(/[*_`]/g, '').replace(/\s+/g, ' ').trim()
+    if (p.length >= 60) return p.length > max ? `${p.slice(0, max - 1).trimEnd()}…` : p
+  }
+  return ''
+}
+
 export function fetchExtras(id: string): Promise<Extras> {
-  return cached(`gh:readme:v2:${id}`, DAY, async () => {
+  return cached(`gh:readme:v3:${id}`, DAY, async () => {
     const r = await fetch(`${RAW}/${id}/HEAD/README.md`)
     const md = r.ok ? await r.text() : ''
-    return { images: pickImages(md, id), skill: looksLikeSkill(md) }
+    return { images: pickImages(md, id), skill: looksLikeSkill(md), blurb: readmeBlurb(md) }
   })
 }
 
@@ -167,3 +182,9 @@ const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFracti
 export const formatStars = (n: number) => compact.format(n).toLowerCase()
 
 export const ageDays = (iso: string, now = Date.now()) => Math.floor((now - Date.parse(iso)) / DAY)
+
+const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
+export function ago(iso: string, now = Date.now()) {
+  const d = ageDays(iso, now)
+  return d < 30 ? rtf.format(-d, 'day') : d < 365 ? rtf.format(-Math.round(d / 30), 'month') : rtf.format(-Math.round(d / 365), 'year')
+}
