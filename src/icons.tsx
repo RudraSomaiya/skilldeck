@@ -20,6 +20,7 @@ export const Undo = ({ size = 22 }: { size?: number }) => <Icon size={size} d="M
 export const Flip = ({ size = 22 }: { size?: number }) => (
   <Icon size={size} d="M4 12a8 8 0 0113.7-5.6L20 8.7M20 4v4.7h-4.7M20 12a8 8 0 01-13.7 5.6L4 15.3M4 20v-4.7h4.7" />
 )
+export const Sliders = ({ size = 22 }: { size?: number }) => <Icon size={size} d="M4 7h9M17 7h3M15 5v4M4 17h3M11 17h9M9 15v4" />
 export const External = ({ size = 16 }: { size?: number }) => (
   <Icon size={size} d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" />
 )

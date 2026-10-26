@@ -15,7 +15,7 @@ type Props = {
   children: ReactNode // shown when the deck is empty
 }
 
-const press = { whileTap: { scale: 0.86 }, transition: { type: 'spring', stiffness: 600, damping: 15 } } as const
+export const press = { whileTap: { scale: 0.86 }, transition: { type: 'spring', stiffness: 600, damping: 15 } } as const
 
 export function Deck({ cards, extras, returning, canUndo, onSwipe, onUndo, children }: Props) {
   const exit = useRef<Exit>({ dir: 1, v: 0 })
@@ -48,6 +48,7 @@ export function Deck({ cards, extras, returning, canUndo, onSwipe, onUndo, child
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (document.querySelector('[aria-modal="true"]')) return
       if (e.target instanceof HTMLElement && e.target.closest('input, select, textarea')) return
       const k = e.key.toLowerCase()
       if (k === 'arrowright') swipe(1)

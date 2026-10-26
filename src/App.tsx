@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
-import { MotionConfig, motion } from 'motion/react'
-import { fetchExtras, pruneCache, RateLimited, searchRepos, type Extras, type Repo } from './github'
-import { Deck } from './Deck'
-import { Star } from './icons'
-import { load, persist, type Verdict } from './store'
+import { AnimatePresence, MotionConfig, motion } from 'motion/react'
+import { SEEDS, fetchExtras, pruneCache, RateLimited, searchRepos, type Extras, type Filters, type Repo } from './github'
+import { Deck, press } from './Deck'
+import { FilterSheet } from './Filters'
+import { SavedList } from './Saved'
+import { Sliders, Star } from './icons'
+import { DEFAULT_FILTERS, load, persist, type Verdict } from './store'
 
 function explain(e: unknown) {
   return e instanceof RateLimited
     ? `GitHub needs a minute. Try again after ${e.resetAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
     : 'Could not reach GitHub. Check your connection and try again.'
 }
+
+const query = (f: Filters) => `${f.sort}:${f.min}:${f.max}`
+const slide = (from: number) => ({ initial: { opacity: 0, x: from }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: from } })
 
 export function App() {
   const [state, setState] = useState(load)
@@ -22,6 +27,8 @@ export function App() {
   const [extras, setExtras] = useState<Record<string, Extras>>({})
   const [history, setHistory] = useState<{ repo: Repo; verdict: Verdict }[]>([])
   const [returning, setReturning] = useState<{ id: string; dir: 1 | -1 } | null>(null)
+  const [view, setView] = useState<'deck' | 'saved'>('deck')
+  const [sheet, setSheet] = useState(false)
   const asked = useRef(new Set<string>())
   const { filters, swipes, saved } = state
 
@@ -85,47 +92,92 @@ export function App() {
     })
   }
 
+  function applyFilters(f: Filters) {
+    setSheet(false)
+    if (query(f) !== query(filters)) {
+      setRepos(null)
+      setPage(1)
+      setDone(false)
+      setHistory([])
+    }
+    setState(s => ({ ...s, filters: f }))
+  }
+
+  const removeSaved = (id: string) =>
+    setState(s => ({ ...s, saved: s.saved.filter(x => x.id !== id), swipes: { ...s.swipes, [id]: 'pass' } }))
+
   const passedAgain = () =>
     setState(s => ({ ...s, swipes: Object.fromEntries(Object.entries(s.swipes).filter(([, v]) => v === 'save')) }))
+
+  // Filter chips come from the data: topics of everything loaded, plus anything already hidden.
+  function topics(): [string, number][] {
+    const n = new Map(filters.hidden.map(t => [t, 0]))
+    for (const r of repos ?? []) for (const t of r.topics) if (!SEEDS.includes(t)) n.set(t, (n.get(t) ?? 0) + 1)
+    const all = [...n].sort((a, b) => b[1] - a[1])
+    return [...all.filter(([t]) => filters.hidden.includes(t)), ...all.filter(([t]) => !filters.hidden.includes(t)).slice(0, 36)]
+  }
+
+  const tuned = query(filters) !== query(DEFAULT_FILTERS) || filters.hidden.length > 0
 
   return (
     <MotionConfig reducedMotion="user">
       <div className="app">
         <header className="bar">
           <span className="wordmark">Skilldeck</span>
-          <motion.span
-            key={saved.length}
-            className="count"
-            initial={{ scale: 1.35 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 12 }}
-            aria-label={`${saved.length} saved`}
-          >
-            <Star /> {saved.length}
-          </motion.span>
+          <div className="bar-actions">
+            {view === 'deck' && (
+              <motion.button {...press} className="icon-pill" onClick={() => setSheet(true)} aria-label="Filters">
+                <Sliders />
+                {tuned && <span className="dot" />}
+              </motion.button>
+            )}
+            <motion.button
+              {...press}
+              className="count"
+              aria-pressed={view === 'saved'}
+              aria-label={`Saved skills, ${saved.length}`}
+              onClick={() => setView(v => (v === 'deck' ? 'saved' : 'deck'))}
+            >
+              <Star />
+              <motion.span key={saved.length} initial={{ scale: 1.6 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 12 }}>
+                {saved.length}
+              </motion.span>
+            </motion.button>
+          </div>
         </header>
         <main className="stage">
-          {error ? (
-            <div className="empty">
-              <p>{error}</p>
-              <button className="pill" onClick={() => setRetry(n => n + 1)}>Try again</button>
-            </div>
-          ) : !repos ? (
-            <p className="hint">Dealing skills from GitHub…</p>
-          ) : (
-            <Deck cards={deck} extras={extras} returning={returning} canUndo={history.length > 0} onSwipe={swipe} onUndo={undo}>
-              {done ? (
-                <div className="empty">
-                  <p>You have seen every skill that matches.</p>
-                  <button className="pill" onClick={passedAgain}>Show passed skills again</button>
-                </div>
-              ) : (
-                <p className="hint">Dealing more skills…</p>
-              )}
-            </Deck>
-          )}
+          <AnimatePresence mode="wait" initial={false}>
+            {view === 'saved' ? (
+              <motion.div key="saved" className="view" {...slide(40)}>
+                <SavedList saved={saved} onRemove={removeSaved} onBack={() => setView('deck')} />
+              </motion.div>
+            ) : (
+              <motion.div key="deck" className="view" {...slide(-40)}>
+                {error ? (
+                  <div className="empty">
+                    <p>{error}</p>
+                    <button className="pill" onClick={() => setRetry(n => n + 1)}>Try again</button>
+                  </div>
+                ) : !repos ? (
+                  <p className="hint">Dealing skills from GitHub…</p>
+                ) : (
+                  <Deck cards={deck} extras={extras} returning={returning} canUndo={history.length > 0} onSwipe={swipe} onUndo={undo}>
+                    {done ? (
+                      <div className="empty">
+                        <p>You have seen every skill that matches.</p>
+                        <button className="pill" onClick={passedAgain}>Show passed skills again</button>
+                      </div>
+                    ) : (
+                      <p className="hint">Dealing more skills…</p>
+                    )}
+                  </Deck>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </main>
       </div>
+      <AnimatePresence>{sheet && <FilterSheet filters={filters} topics={topics()} onDone={applyFilters} />}</AnimatePresence>
     </MotionConfig>
   )
 }
