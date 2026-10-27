@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'motion/react'
+import { cloud, newCode, shareLink, sync } from './cloud'
 import { SEEDS, fetchExtras, pruneCache, RateLimited, searchRepos, type Extras, type Filters, type Repo } from './github'
 import { Deck, press } from './Deck'
 import { FilterSheet } from './Filters'
 import { SavedList } from './Saved'
 import { Sliders, Star } from './icons'
-import { DEFAULT_FILTERS, load, persist, type Verdict } from './store'
+import { DEFAULT_FILTERS, load, merge, persist, type Verdict } from './store'
 
 function explain(e: unknown) {
   return e instanceof RateLimited
@@ -29,11 +30,68 @@ export function App() {
   const [returning, setReturning] = useState<{ id: string; dir: 1 | -1 } | null>(null)
   const [view, setView] = useState<'deck' | 'saved'>('deck')
   const [sheet, setSheet] = useState(false)
+  const [offline, setOffline] = useState(false)
   const asked = useRef(new Set<string>())
-  const { filters, swipes, saved } = state
+  const latest = useRef(state)
+  const syncing = useRef(false)
+  const again = useRef(false)
+  const { filters, swipes, saved, list, base } = state
 
-  useEffect(() => persist(state), [state])
+  useEffect(() => {
+    latest.current = state
+    persist(state)
+  }, [state])
   useEffect(() => pruneCache(), [])
+
+  // A share link (#list=code) puts this device in that list. Saves made before joining go into it.
+  useEffect(() => {
+    const code = new URLSearchParams(location.hash.slice(1)).get('list')
+    if (!code) return
+    window.history.replaceState(null, '', location.pathname + location.search)
+    if (cloud && /^[a-z0-9]{16,64}$/i.test(code))
+      setState(s => (s.list === code ? s : { ...s, list: code, base: [], saved: s.list ? [] : s.saved }))
+  }, [])
+
+  // Sends what changed here and takes everyone else's changes. Changes made while a sync is in
+  // flight are merged back on top, and a failed sync leaves them waiting for the next one.
+  async function syncNow() {
+    const s = latest.current
+    if (!cloud || !s.list) return
+    if (syncing.current) return void (again.current = true)
+    syncing.current = true
+    const sent = s.saved.map(x => x.id)
+    try {
+      const fresh = await sync(s.list, s.saved, s.base)
+      setState(cur => (cur.list !== s.list ? cur : { ...cur, saved: merge(fresh, cur.saved, sent).list, base: fresh.map(x => x.id) }))
+      setOffline(false)
+    } catch {
+      setOffline(true)
+    } finally {
+      syncing.current = false
+      if (again.current) {
+        again.current = false
+        syncNow()
+      }
+    }
+  }
+
+  const dirty = !!list && (saved.length !== base.length || saved.some(x => !base.includes(x.id)))
+  useEffect(() => {
+    if (!dirty) return
+    const t = setTimeout(syncNow, 500)
+    return () => clearTimeout(t)
+  }, [dirty, saved])
+
+  useEffect(() => {
+    syncNow()
+    const onShow = () => document.visibilityState === 'visible' && syncNow()
+    document.addEventListener('visibilitychange', onShow)
+    window.addEventListener('online', onShow)
+    return () => {
+      document.removeEventListener('visibilitychange', onShow)
+      window.removeEventListener('online', onShow)
+    }
+  }, [list])
 
   useEffect(() => {
     let live = true
@@ -52,8 +110,10 @@ export function App() {
     return () => { live = false }
   }, [filters.sort, filters.min, filters.max, page, retry])
 
+  // Cards already on the saved list stay out of the deck, including ones a friend saved.
+  const savedIds = new Set(saved.map(s => s.id))
   const deck = (repos ?? []).filter(
-    r => !swipes[r.id] && extras[r.id]?.skill !== false && !r.topics.some(t => filters.hidden.includes(t)),
+    r => !swipes[r.id] && !savedIds.has(r.id) && extras[r.id]?.skill !== false && !r.topics.some(t => filters.hidden.includes(t)),
   )
 
   // README art and the spam check for the next five cards.
@@ -109,6 +169,15 @@ export function App() {
   const passedAgain = () =>
     setState(s => ({ ...s, swipes: Object.fromEntries(Object.entries(s.swipes).filter(([, v]) => v === 'save')) }))
 
+  // Starts a shared list from this device's saves, or returns the link to the one it's already in.
+  function share() {
+    const code = list ?? newCode()
+    if (!list) setState(s => ({ ...s, list: code, base: [] }))
+    return shareLink(code)
+  }
+
+  const leave = () => setState(s => ({ ...s, list: null, base: [] }))
+
   // Filter chips come from the data: topics of everything loaded, plus anything already hidden.
   function topics(): [string, number][] {
     const n = new Map(filters.hidden.map(t => [t, 0]))
@@ -149,7 +218,15 @@ export function App() {
           <AnimatePresence mode="wait" initial={false}>
             {view === 'saved' ? (
               <motion.div key="saved" className="view" {...slide(40)}>
-                <SavedList saved={saved} onRemove={removeSaved} onBack={() => setView('deck')} />
+                <SavedList
+                  saved={saved}
+                  list={list}
+                  offline={offline}
+                  onShare={share}
+                  onLeave={leave}
+                  onRemove={removeSaved}
+                  onBack={() => setView('deck')}
+                />
               </motion.div>
             ) : (
               <motion.div key="deck" className="view" {...slide(-40)}>
