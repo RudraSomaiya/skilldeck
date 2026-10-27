@@ -116,6 +116,7 @@ skilldeck/
 - Without a token, GitHub allows 10 searches a minute and 60 other API calls an hour per IP address. Searches are cached on the device for 30 minutes and file trees for a day, but flipping a lot of cards quickly can still hit the limit. When that happens, the app tells you when to try again.
 - GitHub search returns at most 1,000 results per query, so a broad filter runs out after 20 pages.
 - Anyone with a list's link can add and remove skills. There's no history, so a removed skill has to be found and saved again.
+- Supabase's free plan pauses a project after a week with no activity. Shared lists stop syncing until you restore the project from the Supabase dashboard. Changes made in the meantime stay on each device and sync afterwards.
 - Stars are a rough signal. A repo with thousands of stars can still be a list of links rather than installable skills. Flipping the card shows which it is.
 
 ## Credits
