@@ -87,6 +87,17 @@ button { font: inherit; color: inherit; }
 
 .stage { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; }
 .hint { color: var(--on-felt-dim); text-align: center; max-width: 32ch; margin: 0; }
+.skeleton {
+  display: grid;
+  place-items: center;
+  width: min(100%, 400px);
+  height: calc(min(64dvh, 600px) - 30px);
+  border-radius: var(--r-card);
+  background: rgb(255 255 255 / 0.06);
+  animation: breathe-felt 1.4s ease-in-out infinite;
+}
+@keyframes breathe-felt { 50% { background: rgb(255 255 255 / 0.12); } }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .empty { display: grid; justify-items: center; gap: 16px; text-align: center; padding: 24px; }
 .empty p { margin: 0; font: 700 28px/1.1 var(--display); max-width: 16ch; color: var(--on-felt); }
 .pill {
@@ -146,11 +157,13 @@ button { font: inherit; color: inherit; }
 .back { transform: rotateY(180deg); padding: 18px 18px 16px; gap: 10px; }
 
 .art { flex: 0 0 42%; background: var(--paper-2); overflow: hidden; }
+.art:not(.cover):not(.contain) { animation: breathe 1.4s ease-in-out infinite; } /* until the picture arrives */
+@keyframes breathe { 50% { background: var(--paper); } }
 .art img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity var(--t-std) var(--ease-out); }
 .art.cover img, .art.contain img { opacity: 1; }
 .art.contain img { object-fit: contain; padding: 18px; }
 
-.body { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 14px 18px 18px; }
+.body { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 14px 18px 18px; overflow: hidden; }
 .meta { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
 .rarity { color: var(--rim-ink); }
 .new { color: #0f7a45; }
@@ -186,7 +199,7 @@ button { font: inherit; color: inherit; }
   line-clamp: 7;
   overflow: hidden;
 }
-.tags { margin: auto 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.tags { margin: auto 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; max-height: 28px; overflow: hidden; } /* one row */
 .tags li, .skills li {
   padding: 4px 10px;
   border-radius: var(--r-pill);
@@ -268,6 +281,27 @@ kbd {
   text-align: center;
 }
 @media (hover: hover) and (pointer: fine) { .keys { display: flex; } }
+
+/* Shorter cards: less picture, fewer lines, so nothing collides. */
+@media (max-height: 800px) {
+  .art { flex-basis: 34%; }
+  .desc { -webkit-line-clamp: 3; line-clamp: 3; }
+  .noart .desc { -webkit-line-clamp: 3; line-clamp: 3; }
+  .blurb { -webkit-line-clamp: 4; line-clamp: 4; }
+}
+
+/* Short screens (a phone on its side): a smaller deck, no key hints. */
+@media (max-height: 560px) {
+  .deck { height: calc(100dvh - 150px); }
+  .actions { padding-top: 10px; }
+  .act { width: 52px; height: 52px; }
+  .act.small { width: 44px; height: 44px; }
+  .keys { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
 
 /* Filters: a sheet from the bottom (centred on wide screens). */
 .scrim {

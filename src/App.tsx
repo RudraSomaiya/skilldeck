@@ -159,7 +159,9 @@ export function App() {
                     <button className="pill" onClick={() => setRetry(n => n + 1)}>Try again</button>
                   </div>
                 ) : !repos ? (
-                  <p className="hint">Dealing skills from GitHub…</p>
+                  <div className="skeleton">
+                    <p className="hint">Dealing skills from GitHub…</p>
+                  </div>
                 ) : (
                   <Deck cards={deck} extras={extras} returning={returning} canUndo={history.length > 0} onSwipe={swipe} onUndo={undo}>
                     {done ? (

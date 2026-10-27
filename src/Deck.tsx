@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Card, type Exit, type Loadable } from './Card'
-import { fetchContents, type Contents, type Extras, type Repo } from './github'
+import { fetchContents, formatStars, type Contents, type Extras, type Repo } from './github'
 import { Flip, Star, Undo, X } from './icons'
 import type { Verdict } from './store'
 
@@ -106,6 +106,7 @@ export function Deck({ cards, extras, returning, canUndo, onSwipe, onUndo, child
           <Flip />
         </motion.button>
       </div>
+      <p className="sr-only" aria-live="polite">{top ? `${top.name} by ${top.owner}, ${formatStars(top.stars)} stars` : ''}</p>
       <p className="keys" aria-hidden="true">
         <span><kbd>←</kbd>Pass</span>
         <span><kbd>→</kbd>Save</span>
