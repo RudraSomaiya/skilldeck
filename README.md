@@ -14,7 +14,7 @@ Right to save, left to pass, and share what you saved with friends through a lin
 
 **[Open Skilldeck](https://rudrasomaiya.github.io/skilldeck/)**
 
-<img src="docs/images/hero.webp" alt="Four Skilldeck screens: a card swiped right with a Save stamp, a flipped card listing the 20 skills inside, the filter sheet with a stars range and topic chips, and a shared saved list" width="880">
+<img src="docs/images/demo.gif" alt="Skilldeck in use: a card swiped left with a Nope stamp, a Legendary card flipped to list the 20 skills inside, the same card swiped right to save, then undo bringing both cards back" width="720">
 
 </div>
 
@@ -29,6 +29,8 @@ Skilldeck deals them out as cards instead. Each card shows the repo's README pic
 It runs in the browser on a phone or a laptop, and you don't need an account. There's no curated list: every card comes straight from GitHub's search API, so a new skill turns up as soon as it's tagged. Your saves stay on your device unless you share them.
 
 ## How it works
+
+<p align="center"><img src="docs/images/hero.webp" alt="Four Skilldeck screens: a card swiped right with a Save stamp, a flipped card listing the 20 skills inside, the filter sheet with a stars range and topic chips, and a shared saved list" width="880"></p>
 
 | You do this | You get |
 |---|---|
